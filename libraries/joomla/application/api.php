@@ -26,6 +26,14 @@ final class JApplicationApi extends JApplicationCms
 	protected $clientId = 3;
 
 	/**
+	 * The controller returned from the router
+	 *
+	 * @var    JController
+	 * @since  1.0
+	 */
+	protected $controller;
+
+	/**
 	 * Response MIME type.
 	 *
 	 * @var    string
@@ -40,6 +48,14 @@ final class JApplicationApi extends JApplicationCms
 	 * @since  1.0
 	 */
 	protected $name = 'api';
+
+	/**
+	 * The response object
+	 *
+	 * @var    JResponseJson
+	 * @since  1.0
+	 */
+	protected $responseObject;
 
 	/**
 	 * Class constructor.
@@ -69,6 +85,51 @@ final class JApplicationApi extends JApplicationCms
 		$this->router->setControllerPrefix('ApiController');
 		$this->router->addMap(':component/:type', 'List');
 		$this->router->addMap(':component/:type/:id', 'Item');
+
+		// Force the format to JSON, mainly affects JDocument uses
+		$this->input->set('format', 'json');
+	}
+
+	/**
+	 * Dispatch the application
+	 *
+	 * @param   string  $component  The component which is being rendered.
+	 *
+	 * @return  void
+	 *
+	 * @since   3.2
+	 */
+	public function dispatch($component = null)
+	{
+		// Get the component if not set.
+		if (!$component)
+		{
+			$component = $this->input->getCmd('option', null);
+		}
+
+		// Load the document to the API
+		$this->loadDocument();
+
+		// Register the document object with JFactory
+		JFactory::$document = $this->getDocument();
+
+		// Define component paths for application compatibility.
+		if (!defined('JPATH_COMPONENT'))
+		{
+			define('JPATH_COMPONENT', JPATH_SITE . '/components/' . $component);
+		}
+
+		if (!defined('JPATH_COMPONENT_SITE'))
+		{
+			define('JPATH_COMPONENT_SITE', JPATH_SITE . '/components/' . $component);
+		}
+
+		if (!defined('JPATH_COMPONENT_ADMINISTRATOR'))
+		{
+			define('JPATH_COMPONENT_ADMINISTRATOR', JPATH_ADMINISTRATOR . '/components/' . $component);
+		}
+
+		$this->controller->execute();
 	}
 
 	/**
@@ -80,13 +141,29 @@ final class JApplicationApi extends JApplicationCms
 	 */
 	protected function doExecute()
 	{
-		$controller = $this->router->getController($this->get('uri.route'));
+		// Initialise the application
+		$this->initialiseApp();
+
+		// Mark afterInitialise in the profiler.
+		JDEBUG ? $this->profiler->mark('afterInitialise') : null;
+
+		// Route the application
+		$this->route();
+
+		// Mark afterRoute in the profiler.
+		JDEBUG ? $this->profiler->mark('afterRoute') : null;
+
+		// Dispatch the application
+		$this->dispatch();
+
+		// Mark afterDispatch in the profiler.
+		JDEBUG ? $this->profiler->mark('afterDispatch') : null;
 	}
 
 	/**
 	 * Gets the client id of the current running application.
 	 *
-	 * @return  integer  A client identifier.
+	 * @return  integer
 	 *
 	 * @since   1.0
 	 */
@@ -103,7 +180,7 @@ final class JApplicationApi extends JApplicationCms
 	 * @param   string  $name     The name of the application/client.
 	 * @param   array   $options  An optional associative array of configuration settings.
 	 *
-	 * @return  JMenu  JMenu object.
+	 * @return  JMenu
 	 *
 	 * @since   1.0
 	 */
@@ -121,7 +198,7 @@ final class JApplicationApi extends JApplicationCms
 	/**
 	 * Gets the name of the current running application.
 	 *
-	 * @return  string  The name of the application.
+	 * @return  string
 	 *
 	 * @since   1.0
 	 */
@@ -135,7 +212,7 @@ final class JApplicationApi extends JApplicationCms
 	 *
 	 * @param   string  $option  The component option
 	 *
-	 * @return  Registry  The parameters object
+	 * @return  Registry
 	 *
 	 * @since   1.0
 	 */
@@ -223,7 +300,7 @@ final class JApplicationApi extends JApplicationCms
 	 * @param   string  $name     The name of the application.
 	 * @param   array   $options  An optional associative array of configuration settings.
 	 *
-	 * @return  JPathway  A JPathway object
+	 * @return  JPathway
 	 *
 	 * @since   1.0
 	 */
@@ -240,9 +317,9 @@ final class JApplicationApi extends JApplicationCms
 	 * @param   string  $name     The name of the application.
 	 * @param   array   $options  An optional associative array of configuration settings.
 	 *
-	 * @return	JRouter
+	 * @return  JRouter
 	 *
-	 * @since	1.0
+	 * @since   1.0
 	 */
 	public static function getRouter($name = 'site', array $options = array())
 	{
@@ -256,15 +333,144 @@ final class JApplicationApi extends JApplicationCms
 	 *
 	 * @param   boolean  $params  True to return the template parameters
 	 *
-	 * @return  string  The name of the template.
+	 * @return  string
 	 *
 	 * @since   1.0
-	 * @throws  InvalidArgumentException
 	 */
 	public function getTemplate($params = false)
 	{
 		// The API application should not need to use a template
 		return 'system';
+	}
+
+	/**
+	 * Initialise the application.
+	 *
+	 * @param   array  $options  An optional associative array of configuration settings.
+	 *
+	 * @return  void
+	 *
+	 * @since   1.0
+	 */
+	protected function initialiseApp($options = array())
+	{
+		// Build our language object
+		$lang = JLanguage::getInstance($this->get('language'), $this->get('debug_lang'));
+
+		// Load the language to the API
+		$this->loadLanguage($lang);
+
+		// Register the language object with JFactory
+		JFactory::$language = $this->getLanguage();
+
+		/*
+		 * Try the lib_joomla file in the current language (without allowing the loading of the file in the default language)
+		 * Fallback to the default language if necessary
+		 */
+		$this->getLanguage()->load('lib_joomla', JPATH_SITE, null, false, true)
+			|| $this->getLanguage()->load('lib_joomla', JPATH_ADMINISTRATOR, null, false, true);
+	}
+
+	/**
+	 * Rendering is the process of pushing the document buffers into the template
+	 * placeholders, retrieving data from the document and pushing it into
+	 * the application response buffer.
+	 *
+	 * @return  void
+	 *
+	 * @since   1.0
+	 */
+	protected function render()
+	{
+		// Render the document.
+		$data = array('items' => $this->document->render($this->allowCache()));
+
+		// Build our JSON Response object from the rendered data
+		$this->responseObject = new JResponseJson($data);
+
+		// Mark afterRender in the profiler.
+		JDEBUG ? $this->profiler->mark('afterRender') : null;
+	}
+
+	/**
+	 * Method to send the application response to the client.  All headers will be sent prior to the main application output data.
+	 *
+	 * @return  void
+	 *
+	 * @since   1.0
+	 */
+	protected function respond()
+	{
+		// Send the content-type header.
+		$this->setHeader('Content-Type', $this->mimeType . '; charset=' . $this->charSet);
+
+		// If the response is set to uncachable, we need to set some appropriate headers so browsers don't cache the response.
+		if (!$this->response->cachable)
+		{
+			// Expires in the past.
+			$this->setHeader('Expires', 'Wed, 17 Aug 2005 00:00:00 GMT', true);
+
+			// Always modified.
+			$this->setHeader('Last-Modified', gmdate('D, d M Y H:i:s') . ' GMT', true);
+			$this->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, post-check=0, pre-check=0', false);
+
+			// HTTP 1.0
+			$this->setHeader('Pragma', 'no-cache');
+		}
+		else
+		{
+			// Expires.
+			$this->setHeader('Expires', gmdate('D, d M Y H:i:s', time() + 900) . ' GMT');
+
+			// Last modified.
+			if ($this->modifiedDate instanceof JDate)
+			{
+				$this->setHeader('Last-Modified', $this->modifiedDate->format('D, d M Y H:i:s'));
+			}
+		}
+
+		$this->sendHeaders();
+
+		// Attach the profiler's data if debugging
+		if (JDEBUG)
+		{
+			$this->profiler->mark('onBeforeSendResponse');
+			$this->responseObject->data['profile'] = $this->profiler->getMarks();
+		}
+
+		echo $this->responseObject;
+	}
+
+	/**
+	 * Route the application.
+	 *
+	 * @return  void
+	 *
+	 * @since   1.0
+	 */
+	protected function route()
+	{
+		$this->controller = $this->router->getController($this->get('uri.route'));
+
+		// Map our `component` route segment to the CMS' `option`
+		$option = 'com_' . $this->input->getRaw('component');
+		$this->input->set('option', $option);
+
+		// Map our `type` route segment to the CMS' `view`
+		$view = $this->input->getRaw('type');
+		$this->input->set('view', $view);
+
+		// Validate the component exists
+		if (!is_dir(JPATH_ROOT . "/components/$option"))
+		{
+			throw new RuntimeException(JText::_('JLIB_APPLICATION_ERROR_COMPONENT_NOT_FOUND'), 404);
+		}
+
+		// Validate the view type (model) exists
+		if (!file_exists(JPATH_ROOT . "/components/$option/models/$view.php"))
+		{
+			throw new RuntimeException(sprintf('Could not find the "%1$s" model in the "%2$s" component.', $view, $option), 404);
+		}
 	}
 
 	/**

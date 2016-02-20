@@ -66,7 +66,6 @@ class ApiError
 		$response = new JResponseJson($throwable);
 
 		$app = JFactory::getApplication();
-		$app->setBody((string) $response);
 
 		// Set the status header
 		$status = $throwable->getCode();
