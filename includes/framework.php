@@ -14,25 +14,23 @@ defined('_JEXEC') or die;
 // System includes
 require_once JPATH_LIBRARIES . '/import.legacy.php';
 
-// Set system error handling
-// TODO - Register real error handlers, for now just ignore
-JError::setErrorHandling(E_NOTICE, 'ignore');
-JError::setErrorHandling(E_WARNING, 'ignore');
-JError::setErrorHandling(E_ERROR, 'ignore');
-
 // Bootstrap the CMS libraries.
 require_once JPATH_LIBRARIES . '/cms.php';
-
-// Set a custom Exception handler
-// TODO - Create the error handling function
-restore_exception_handler();
-//set_exception_handler(array('JErrorPage', 'render'));
 
 // Register the library base path for the application Joomla compatibility libraries.
 JLoader::registerPrefix('J', dirname(__DIR__) . '/libraries/joomla', false, true);
 
 // Register the library base path for the application libraries.
 JLoader::registerPrefix('Api', dirname(__DIR__) . '/libraries/api');
+
+// Set system error handling
+JError::setErrorHandling(E_NOTICE, 'callback', array('ApiError', 'handleLegacyError'));
+JError::setErrorHandling(E_WARNING, 'callback', array('ApiError', 'handleLegacyError'));
+JError::setErrorHandling(E_ERROR, 'callback', array('ApiError', 'handleLegacyError'));
+
+// Set a custom Exception handler
+restore_exception_handler();
+set_exception_handler(array('ApiError', 'handleUncaughtThrowable'));
 
 // Register the application client
 JApplicationHelper::addClientInfo((object) array('id' => 3, 'name' => 'api', 'path' => JPATH_BASE));

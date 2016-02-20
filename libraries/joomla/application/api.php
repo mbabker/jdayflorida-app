@@ -26,6 +26,14 @@ final class JApplicationApi extends JApplicationCms
 	protected $clientId = 3;
 
 	/**
+	 * Response MIME type.
+	 *
+	 * @var    string
+	 * @since  1.0
+	 */
+	public $mimeType = 'application/json';
+
+	/**
 	 * The name of the application.
 	 *
 	 * @var    array
