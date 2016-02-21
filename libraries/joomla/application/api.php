@@ -129,6 +129,9 @@ final class JApplicationApi extends JApplicationCms
 			define('JPATH_COMPONENT_ADMINISTRATOR', JPATH_ADMINISTRATOR . '/components/' . $component);
 		}
 
+		// Load the component's language files.
+		$this->getLanguage()->load($component, JPATH_SITE, null, false, true) || $this->getLanguage()->load($component, JPATH_COMPONENT, null, false, true);
+
 		$this->controller->execute();
 	}
 
@@ -383,7 +386,7 @@ final class JApplicationApi extends JApplicationCms
 	protected function render()
 	{
 		// Render the document.
-		$data = array('items' => $this->document->render($this->allowCache()));
+		$data = array('content' => $this->document->render($this->allowCache()));
 
 		// Build our JSON Response object from the rendered data
 		$this->responseObject = new JResponseJson($data);

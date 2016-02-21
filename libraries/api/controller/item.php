@@ -13,7 +13,7 @@ defined('_JEXEC') or die;
  *
  * @since  1.0
  */
-class ApiControllerItems extends JControllerBase
+class ApiControllerItem extends JControllerBase
 {
 	/**
 	 * Execute the controller.
@@ -24,6 +24,38 @@ class ApiControllerItems extends JControllerBase
 	 */
 	public function execute()
 	{
-		// TODO: Implement execute() method.
+		// Load the requested model's lookup path into the system
+		$option = $this->getInput()->getCmd('option');
+		$view   = $this->getInput()->getWord('view');
+
+		// If the view's name is "category", we treat this as a list and just run the list controller
+		if ($view == 'category')
+		{
+			$controller = new ApiControllerList($this->getInput(), $this->getApplication());
+
+			return $controller->execute();
+		}
+
+		$modelPath = JPATH_ROOT . "/components/$option/models";
+
+		JModelLegacy::addIncludePath($modelPath);
+
+		// Try to fetch our model now
+		$classPrefix = ucfirst($this->getInput()->getWord('component')) . 'Model';
+
+		/** @var JModelItem $model */
+		$model = JModelLegacy::getInstance(ucfirst($view), $classPrefix);
+
+		if ($model === false)
+		{
+			throw new UnexpectedValueException('Model not found.');
+		}
+
+		$item = $model->getItem($this->getInput()->getUint('id'));
+
+		// Load the item into the document's buffer
+		$this->getApplication()->getDocument()->setBuffer($item);
+
+		return true;
 	}
 }
