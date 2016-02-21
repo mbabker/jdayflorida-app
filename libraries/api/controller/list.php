@@ -46,6 +46,15 @@ class ApiControllerList extends JControllerBase
 			throw new UnexpectedValueException('Model not found.');
 		}
 
+		// Since the CMS is terrible about including non-autoloaded dependencies in all the needed files, we have to make sure some stuff gets loaded
+		switch ($option)
+		{
+			case 'com_content':
+				JLoader::register('ContentHelperQuery', JPATH_SITE . '/components/com_content/helpers/query.php');
+
+				break;
+		}
+
 		$items = $model->getItems();
 
 		// Load the items into the document's buffer
