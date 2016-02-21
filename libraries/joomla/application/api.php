@@ -360,6 +360,9 @@ final class JApplicationApi extends JApplicationCms
 		// Build our language object
 		$lang = JLanguage::getInstance($this->get('language'), $this->get('debug_lang'));
 
+		// Load the frontend's language strings (not loaded here since JLanguage uses JPATH_BASE as the default parameter)
+		$lang->load('joomla', JPATH_SITE, null, false, true);
+
 		// Load the language to the API
 		$this->loadLanguage($lang);
 

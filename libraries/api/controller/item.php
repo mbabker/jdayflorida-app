@@ -48,7 +48,7 @@ class ApiControllerItem extends JControllerBase
 
 		if ($model === false)
 		{
-			throw new UnexpectedValueException('Model not found.');
+			throw new UnexpectedValueException('Model not found.', 404);
 		}
 
 		$item = $model->getItem($this->getInput()->getUint('id'));

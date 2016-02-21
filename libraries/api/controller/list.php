@@ -43,7 +43,7 @@ class ApiControllerList extends JControllerBase
 
 		if ($model === false)
 		{
-			throw new UnexpectedValueException('Model not found.');
+			throw new UnexpectedValueException('Model not found.', 404);
 		}
 
 		// Since the CMS is terrible about including non-autoloaded dependencies in all the needed files, we have to make sure some stuff gets loaded
@@ -56,6 +56,15 @@ class ApiControllerList extends JControllerBase
 		}
 
 		$items = $model->getItems();
+
+		// Since the CMS is terrible at error handling and the views have to handle not found errors for category views...
+		if ($view == 'category' && method_exists($model, 'getCategory'))
+		{
+			if (!$model->getCategory())
+			{
+				throw new UnexpectedValueException(JText::_('JGLOBAL_CATEGORY_NOT_FOUND'), 404);
+			}
+		}
 
 		// Load the items into the document's buffer
 		$this->getApplication()->getDocument()->setBuffer($items);
